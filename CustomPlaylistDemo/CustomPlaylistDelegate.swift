@@ -15,33 +15,23 @@ var httpsScheme = "https"
 private var badRequestErrorCode = 400
 
 class CustomPlaylistDelegate: NSObject, AVAssetResourceLoaderDelegate {
-    /*!
-     *  is scheme supported
-     */
-    func schemeSupported(_ scheme: String?) -> Bool {
-        if isCustomPlaylistSchemeValid(scheme) {
-            return true
-        }
-        return false
-    }
-
     override init() {
         super.init()
     }
 
-    func reportError(_ loadingRequest: AVAssetResourceLoadingRequest?, withErrorCode error: Int) {
-        loadingRequest?.finishLoading(with: NSError(domain: NSURLErrorDomain, code: error, userInfo: nil))
+    func reportError(_ loadingRequest: AVAssetResourceLoadingRequest, withErrorCode error: Int) {
+        loadingRequest.finishLoading(with: NSError(domain: NSURLErrorDomain, code: error, userInfo: nil))
     }
 
     /*!
      *  AVARLDelegateDemo's implementation of the protocol.
      *  Check the given request for valid schemes:
-     *
-     * 1) Redirect 2) Custom Play list 3) Custom key
      */
     func resourceLoader(_ resourceLoader: AVAssetResourceLoader,
                         shouldWaitForLoadingOfRequestedResource loadingRequest: AVAssetResourceLoadingRequest) -> Bool {
-        let scheme = loadingRequest.request.url?.scheme
+        guard let scheme = loadingRequest.request.url?.scheme else {
+            return false
+        }
 
         if isCustomPlaylistSchemeValid(scheme) {
             DispatchQueue.main.async(execute: {
@@ -55,7 +45,7 @@ class CustomPlaylistDelegate: NSObject, AVAssetResourceLoaderDelegate {
 }
 
 extension CustomPlaylistDelegate {
-    func isCustomPlaylistSchemeValid(_ scheme: String?) -> Bool {
+    func isCustomPlaylistSchemeValid(_ scheme: String) -> Bool {
         return customPlaylistScheme == scheme
     }
 
@@ -71,13 +61,13 @@ extension CustomPlaylistDelegate {
      *  Handles the custom play list scheme:
      *
      *  1) Verifies its a custom playlist request, otherwise report an error.
-     *  2) Generates the play list.
-     *  3) Create a reponse with the new URL and report success.
+     *  2) Receive the play list from server.
+     *  3) Manipulate manifest and report success.
      */
-    func handleCustomPlaylistRequest(_ loadingRequest: AVAssetResourceLoadingRequest) -> Bool {
+    func handleCustomPlaylistRequest(_ loadingRequest: AVAssetResourceLoadingRequest) {
         guard let url = URL(string: loadingRequest.request.url?.absoluteString.replacingOccurrences(of: customPlaylistScheme, with: httpsScheme) ?? "") else {
             reportError(loadingRequest, withErrorCode: badRequestErrorCode)
-            return true
+            return
         }
         let request = URLRequest(url: url)
         let session = URLSession.shared
@@ -95,16 +85,17 @@ extension CustomPlaylistDelegate {
                             switch result {
                             case .parsedVariant(let variant):
                                 do {
-                                    var prefix = loadingRequest.request.url?.absoluteString
-                                    .replacingOccurrences(of: customPlaylistScheme, with: httpsScheme)
-                                    let range = (prefix as NSString?)?.range(of: "/", options: .backwards)
-                                    prefix = (prefix as NSString?)?.substring(to: range?.location ?? 0)
+                                    var prefix = url.absoluteString
+                                    if let index = url.absoluteString.lastIndex(of: "/") {
+                                        let substring = url.absoluteString[..<index]
+                                        prefix = String(substring)
+                                    }
                                     var playlist = variant
                                     try playlist.transform({ tag in
                                         if tag.tagDescriptor == PantosTag.Location {
                                             return PlaylistTag(
                                                 tagDescriptor: PantosTag.Location,
-                                                tagData: self.toHttps(prefix ?? "", stringRef: tag.tagData))
+                                                tagData: self.toHttps(prefix, stringRef: tag.tagData))
                                         }
                                         return tag
                                     })
@@ -132,6 +123,6 @@ extension CustomPlaylistDelegate {
 
         task.resume()
 
-        return true
+        return
     }
 }

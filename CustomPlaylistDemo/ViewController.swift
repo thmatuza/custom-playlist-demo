@@ -11,18 +11,13 @@ import UIKit
 
 // Asset keys
 let kPlayableKey = "playable"
-// PlayerItem keys
-let kStatusKey = "status"
-// AVPlayer keys
-let kRateKey = "rate"
-let kCurrentItemKey = "currentItem"
-private var rateObservationContext = 0
-private var statusObservationContext = 0
-private var currentItemObservationContext = 0
 
 class ViewController: UIViewController {
     private var seekToZeroBeforePlay = false
     private var delegate: CustomPlaylistDelegate?
+    private var observeStatus: NSKeyValueObservation?
+    private var observeRate: NSKeyValueObservation?
+    private var observeCurrentItem: NSKeyValueObservation?
 
     @IBOutlet private var playView: PlayerView!
     @IBOutlet private var pauseButton: UIBarButtonItem!
@@ -172,74 +167,6 @@ extension ViewController {
  */
 extension ViewController {
     /*!
-     *  Called when the value at the specified key path relative
-     *  to the given object has changed.
-     *  Adjust the movie play and pause button controls when the
-     *  player item "status" value changes. Update the movie
-     *  scrubber control when the player item is ready to play.
-     *  Adjust the movie scrubber control when the player item
-     *  "rate" value changes. For updates of the player
-     *  "currentItem" property, set the AVPlayer for which the
-     *  player layer displays visual output.
-     *  NOTE: this method is invoked on the main queue.
-     */
-    override func observeValue(forKeyPath path: String?,
-                               of object: Any?,
-                               change: [NSKeyValueChangeKey: Any]?,
-                               context: UnsafeMutableRawPointer?) {
-        // AVPlayerItem "status" property value observer.
-        if context == &statusObservationContext {
-            syncPlayPauseButtons()
-
-            let status: AVPlayer.Status
-            if let statusNumber = change?[.newKey] as? NSNumber {
-                status = AVPlayer.Status(rawValue: statusNumber.intValue)!
-            } else {
-                status = .unknown
-            }
-
-            switch status {
-            /* Indicates that the status of the player is not yet known because
-                             it has not tried to load new media resources for playback */
-            case .unknown:
-                disablePlayerButtons()
-            case .readyToPlay:
-                /* Once the AVPlayerItem becomes ready to play, i.e.
-                                 [playerItem status] == AVPlayerItemStatusReadyToPlay,
-                                 its duration can be fetched from the item. */
-
-                enablePlayerButtons()
-            case .failed:
-                let pItem = object as? AVPlayerItem
-                assetFailedToPrepare(forPlayback: pItem?.error)
-            @unknown default:
-                break
-            }
-        } else if context == &rateObservationContext {
-            syncPlayPauseButtons()
-        } else if context == &currentItemObservationContext {
-            let newPlayerItem = change?[.newKey] as? AVPlayerItem
-
-            // Is the new player item null?
-            if newPlayerItem == nil {
-                disablePlayerButtons()
-            } else {
-                // Set the AVPlayer for which the player layer displays visual output.
-                playView.player = player
-
-                /* Specifies that the player should preserve the video’s aspect ratio and
-                             fit the video within the layer’s bounds. */
-                playView.setVideoFillMode(.resizeAspect)
-
-                syncPlayPauseButtons()
-            }
-        } else {
-            super.observeValue(forKeyPath: path, of: object, change: change, context: context)
-        }
-
-    }
-
-    /*!
      *  Invoked at the completion of the loading of the values for all keys on the asset that we require.
      *  Checks whether loading was successfull and whether the asset is playable.
      *  If so, sets up an AVPlayerItem and an AVPlayer to play the asset.
@@ -282,8 +209,8 @@ extension ViewController {
         // Stop observing our prior AVPlayerItem, if we have one.
         if playerItem != nil {
             // Remove existing player item key value observers and notifications.
-
-            playerItem?.removeObserver(self, forKeyPath: kStatusKey)
+            observeStatus?.invalidate()
+            observeStatus = nil
 
             NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: playerItem)
         }
@@ -292,8 +219,29 @@ extension ViewController {
         playerItem = AVPlayerItem(asset: asset)
 
         // Observe the player item "status" key to determine when it is ready to play.
-        playerItem?.addObserver(self,
-                                forKeyPath: kStatusKey, options: [.initial, .new], context: &statusObservationContext)
+        observeStatus = playerItem?.observe(\.status, options: [.initial, .new], changeHandler: { item, change in
+            self.syncPlayPauseButtons()
+
+            // workaround for https://bugs.swift.org/browse/SR-11617
+            let status = change.newValue ?? item.status
+
+            switch status {
+            /* Indicates that the status of the player is not yet known because
+                             it has not tried to load new media resources for playback */
+            case .unknown:
+                self.disablePlayerButtons()
+            case .readyToPlay:
+                /* Once the AVPlayerItem becomes ready to play, i.e.
+                                 [playerItem status] == AVPlayerItemStatusReadyToPlay,
+                                 its duration can be fetched from the item. */
+
+                self.enablePlayerButtons()
+            case .failed:
+                self.assetFailedToPrepare(forPlayback: item.error)
+            @unknown default:
+                break
+            }
+        })
 
         /* When the player item has played to its end time we'll toggle
              the movie controller Pause button to be the Play button */
@@ -310,11 +258,28 @@ extension ViewController {
             /* Observe the AVPlayer "currentItem" property to find out when any
                      AVPlayer replaceCurrentItemWithPlayerItem: replacement will/did
                      occur.*/
-            player?.addObserver(self,
-                                forKeyPath: kCurrentItemKey, options: [.initial, .new], context: &currentItemObservationContext)
+            observeCurrentItem = player?.observe(\.currentItem, options: [.initial, .new], changeHandler: { player, change in
+                let newPlayerItem = change.newValue
+
+                // Is the new player item null?
+                if newPlayerItem == nil {
+                    self.disablePlayerButtons()
+                } else {
+                    // Set the AVPlayer for which the player layer displays visual output.
+                    self.playView.player = player
+
+                    /* Specifies that the player should preserve the video’s aspect ratio and
+                                 fit the video within the layer’s bounds. */
+                    self.playView.setVideoFillMode(.resizeAspect)
+
+                    self.syncPlayPauseButtons()
+                }
+            })
 
             // Observe the AVPlayer "rate" property to update the scrubber control.
-            player?.addObserver(self, forKeyPath: kRateKey, options: [.initial, .new], context: &rateObservationContext)
+            observeRate = player?.observe(\.rate, options: [.initial, .new], changeHandler: { _, _ in
+                self.syncPlayPauseButtons()
+            })
         }
 
         // Make our new AVPlayerItem the AVPlayer's current item.

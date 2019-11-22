@@ -2,17 +2,17 @@
 //  ViewController.swift
 //  CustomPlaylistDemo
 //
-//  Created by 松澤 友弘 on 2019/11/22.
+//  Created by Tomohiro Matsuzawa on 2019/11/22.
 //  Copyright © 2019 CyberAgent. All rights reserved.
 //
 
 import AVFoundation
 import UIKit
 
-// Asset keys
-let kPlayableKey = "playable"
-
 class ViewController: UIViewController {
+    // Asset keys
+    let playableKey = "playable"
+
     private var seekToZeroBeforePlay = false
     private var delegate: CustomPlaylistDelegate?
     private var observeStatus: NSKeyValueObservation?
@@ -43,7 +43,7 @@ class ViewController: UIViewController {
                 let asset = AVURLAsset(url: newValue, options: nil)
                 configDelegates(asset)
 
-                let requestedKeys = [kPlayableKey]
+                let requestedKeys = [playableKey]
 
                 // Tells the asset to load the values of any of the specified keys that are not already loaded.
                 asset.loadValuesAsynchronously(forKeys: requestedKeys, completionHandler: {
@@ -57,12 +57,12 @@ class ViewController: UIViewController {
     private var player: AVPlayer?
     private var playerItem: AVPlayerItem?
 
-    func setupToolbar() {
+    private func setupToolbar() {
         toolbar.items = [playButton]
         syncPlayPauseButtons()
     }
 
-    func initializeView() {
+    private func initializeView() {
         let origUrl = "https://live.unified-streaming.com/scte35/scte35.isml/.m3u8"
         if let url = URL(string: origUrl.replacingOccurrences(of: httpsScheme, with: customPlaylistScheme)) {
             self.url = url
@@ -82,7 +82,7 @@ class ViewController: UIViewController {
     /*!
      *  Create and setup the custom delegae instance.
      */
-    func configDelegates(_ asset: AVURLAsset) {
+    private func configDelegates(_ asset: AVURLAsset) {
         //Setup the delegate for custom URL.
         delegate = CustomPlaylistDelegate()
         let resourceLoader = asset.resourceLoader
@@ -119,7 +119,7 @@ class ViewController: UIViewController {
  *  Play
  *  Pause
  */
-extension ViewController {
+private extension ViewController {
     func showButton(_ button: UIBarButtonItem) {
         var toolbarItems: [UIBarButtonItem]?
         if let items = toolbar.items {
@@ -165,7 +165,7 @@ extension ViewController {
  *  - play failed
  *  - play ended
  */
-extension ViewController {
+private extension ViewController {
     /*!
      *  Invoked at the completion of the loading of the values for all keys on the asset that we require.
      *  Checks whether loading was successfull and whether the asset is playable.

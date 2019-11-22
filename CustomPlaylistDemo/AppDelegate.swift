@@ -2,7 +2,7 @@
 //  AppDelegate.swift
 //  CustomPlaylistDemo
 //
-//  Created by 松澤 友弘 on 2019/11/22.
+//  Created by Tomohiro Matsuzawa on 2019/11/22.
 //  Copyright © 2019 CyberAgent. All rights reserved.
 //
 

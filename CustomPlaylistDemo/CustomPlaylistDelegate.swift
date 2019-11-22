@@ -15,10 +15,6 @@ let httpsScheme = "https"
 private let badRequestErrorCode = 400
 
 class CustomPlaylistDelegate: NSObject, AVAssetResourceLoaderDelegate {
-    override init() {
-        super.init()
-    }
-
     private func reportError(_ loadingRequest: AVAssetResourceLoadingRequest, withErrorCode error: Int) {
         loadingRequest.finishLoading(with: NSError(domain: NSURLErrorDomain, code: error, userInfo: nil))
     }

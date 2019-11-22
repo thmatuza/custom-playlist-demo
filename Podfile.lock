@@ -1,0 +1,20 @@
+PODS:
+  - mamba (2.0.3)
+  - SwiftLint (0.37.0)
+
+DEPENDENCIES:
+  - mamba
+  - SwiftLint
+
+SPEC REPOS:
+  trunk:
+    - mamba
+    - SwiftLint
+
+SPEC CHECKSUMS:
+  mamba: d675c29b1fcf479bec2ec04bedf8304f59751d29
+  SwiftLint: c078a14d7d7ade75e5507795d185e3da41d844d2
+
+PODFILE CHECKSUM: 4278dea10ea0234f5bac7dea385b48742bd4c996
+
+COCOAPODS: 1.8.3

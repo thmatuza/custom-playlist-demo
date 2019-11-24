@@ -82,9 +82,8 @@ private extension CustomPlaylistDelegate {
                             case .parsedVariant(let variant):
                                 do {
                                     var prefix = url.absoluteString
-                                    if let index = url.absoluteString.lastIndex(of: "/") {
-                                        let substring = url.absoluteString[..<index]
-                                        prefix = String(substring)
+                                    if let index = prefix.lastIndex(of: "/") {
+                                        prefix = String(prefix[..<index])
                                     }
                                     var playlist = variant
                                     // manipulate media playlist here

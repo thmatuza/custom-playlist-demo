@@ -45,7 +45,7 @@ private extension CustomPlaylistDelegate {
         return customPlaylistScheme == scheme
     }
 
-    func toHttps(_ prefix: String, stringRef: MambaStringRef) -> MambaStringRef {
+    func toAbsolutePath(_ prefix: String, stringRef: MambaStringRef) -> MambaStringRef {
         var string = stringRef.stringValue()
         if !string.starts(with: "http") {
             string = prefix + "/" + string
@@ -87,11 +87,15 @@ private extension CustomPlaylistDelegate {
                                         prefix = String(substring)
                                     }
                                     var playlist = variant
+                                    // manipulate media playlist here
+
+                                    // need to convert to absolute path with httpsScheme
+                                    // because relative path is resolved with customPlaylistScheme
                                     try playlist.transform({ tag in
                                         if tag.tagDescriptor == PantosTag.Location {
                                             return PlaylistTag(
                                                 tagDescriptor: PantosTag.Location,
-                                                tagData: self.toHttps(prefix, stringRef: tag.tagData))
+                                                tagData: self.toAbsolutePath(prefix, stringRef: tag.tagData))
                                         }
                                         return tag
                                     })
@@ -103,7 +107,10 @@ private extension CustomPlaylistDelegate {
                                 }
                             case .parsedMaster(let master):
                                 do {
-                                    let masterData = try master.write()
+                                    var playlist = master
+                                    // manipulate master playlist here
+
+                                    let masterData = try playlist.write()
                                     loadingRequest.dataRequest?.respond(with: masterData)
                                     loadingRequest.finishLoading()
                                 } catch {
